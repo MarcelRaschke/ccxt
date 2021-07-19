@@ -3,7 +3,7 @@
 // ---------------------------------------------------------------------------
 
 const bitfinex = require ('./bitfinex.js');
-const { ExchangeError, InvalidAddress, ArgumentsRequired, InsufficientFunds, AuthenticationError, OrderNotFound, InvalidOrder, BadRequest, InvalidNonce, BadSymbol, OnMaintenance, NotSupported } = require ('./base/errors');
+const { ExchangeError, InvalidAddress, ArgumentsRequired, InsufficientFunds, AuthenticationError, OrderNotFound, InvalidOrder, BadRequest, InvalidNonce, BadSymbol, OnMaintenance, NotSupported, PermissionDenied } = require ('./base/errors');
 const Precise = require ('./base/Precise');
 
 // ---------------------------------------------------------------------------
@@ -132,6 +132,7 @@ module.exports = class bitfinex2 extends bitfinex {
                         'stats1/{key}:{size}:{symbol}:long/hist',
                         'stats1/{key}:{size}:{symbol}:short/last',
                         'stats1/{key}:{size}:{symbol}:short/hist',
+                        'candles/trade:{timeframe}:{symbol}:{period}/{section}',
                         'candles/trade:{timeframe}:{symbol}/{section}',
                         'candles/trade:{timeframe}:{symbol}/last',
                         'candles/trade:{timeframe}:{symbol}/hist',
@@ -299,6 +300,7 @@ module.exports = class bitfinex2 extends bitfinex {
             },
             'exceptions': {
                 'exact': {
+                    '10001': PermissionDenied, // api_key: permission invalid (#10001)
                     '10020': BadRequest,
                     '10100': AuthenticationError,
                     '10114': InvalidNonce,
@@ -330,7 +332,7 @@ module.exports = class bitfinex2 extends bitfinex {
         //    [0] // maintenance
         //
         const response = await this.publicGetPlatformStatus (params);
-        const status = this.safeValue (response, 0);
+        const status = this.safeInteger (response, 0);
         const formattedStatus = (status === 1) ? 'ok' : 'maintenance';
         this.status = this.extend (this.status, {
             'status': formattedStatus,
@@ -586,7 +588,7 @@ module.exports = class bitfinex2 extends bitfinex {
                 result[code] = account;
             }
         }
-        return this.parseBalance (result, false);
+        return this.parseBalance (result);
     }
 
     async transfer (code, amount, fromAccount, toAccount, params = {}) {

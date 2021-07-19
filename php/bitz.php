@@ -290,10 +290,13 @@ class bitz extends Exchange {
             $base = $this->safe_currency_code($base);
             $quote = $this->safe_currency_code($quote);
             $symbol = $base . '/' . $quote;
+            $pricePrecisionString = $this->safe_string($market, 'priceFloat');
+            $minPrice = $this->parse_precision($pricePrecisionString);
             $precision = array(
                 'amount' => $this->safe_integer($market, 'numberFloat'),
-                'price' => $this->safe_integer($market, 'priceFloat'),
+                'price' => intval($pricePrecisionString),
             );
+            $minAmount = $this->safe_string($market, 'minTrade');
             $result[] = array(
                 'info' => $market,
                 'id' => $id,
@@ -307,15 +310,15 @@ class bitz extends Exchange {
                 'precision' => $precision,
                 'limits' => array(
                     'amount' => array(
-                        'min' => $this->safe_number($market, 'minTrade'),
+                        'min' => $this->parse_number($minAmount),
                         'max' => $this->safe_number($market, 'maxTrade'),
                     ),
                     'price' => array(
-                        'min' => pow(10, -$precision['price']),
+                        'min' => $this->parse_number($minPrice),
                         'max' => null,
                     ),
                     'cost' => array(
-                        'min' => null,
+                        'min' => $this->parse_number(Precise::string_mul($minPrice, $minAmount)),
                         'max' => null,
                     ),
                 ),
@@ -367,7 +370,7 @@ class bitz extends Exchange {
             $account['free'] = $this->safe_string($balance, 'over');
             $result[$code] = $account;
         }
-        return $this->parse_balance($result, false);
+        return $this->parse_balance($result);
     }
 
     public function parse_ticker($ticker, $market = null) {
@@ -1259,7 +1262,7 @@ class bitz extends Exchange {
     }
 
     public function sign($path, $api = 'market', $method = 'GET', $params = array (), $headers = null, $body = null) {
-        $baseUrl = $this->implode_params($this->urls['api'][$api], array( 'hostname' => $this->hostname ));
+        $baseUrl = $this->implode_hostname($this->urls['api'][$api]);
         $url = $baseUrl . '/' . $this->capitalize($api) . '/' . $path;
         $query = null;
         if ($api === 'market') {

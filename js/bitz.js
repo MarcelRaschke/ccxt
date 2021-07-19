@@ -288,10 +288,13 @@ module.exports = class bitz extends Exchange {
             base = this.safeCurrencyCode (base);
             quote = this.safeCurrencyCode (quote);
             const symbol = base + '/' + quote;
+            const pricePrecisionString = this.safeString (market, 'priceFloat');
+            const minPrice = this.parsePrecision (pricePrecisionString);
             const precision = {
                 'amount': this.safeInteger (market, 'numberFloat'),
-                'price': this.safeInteger (market, 'priceFloat'),
+                'price': parseInt (pricePrecisionString),
             };
+            const minAmount = this.safeString (market, 'minTrade');
             result.push ({
                 'info': market,
                 'id': id,
@@ -305,15 +308,15 @@ module.exports = class bitz extends Exchange {
                 'precision': precision,
                 'limits': {
                     'amount': {
-                        'min': this.safeNumber (market, 'minTrade'),
+                        'min': this.parseNumber (minAmount),
                         'max': this.safeNumber (market, 'maxTrade'),
                     },
                     'price': {
-                        'min': Math.pow (10, -precision['price']),
+                        'min': this.parseNumber (minPrice),
                         'max': undefined,
                     },
                     'cost': {
-                        'min': undefined,
+                        'min': this.parseNumber (Precise.stringMul (minPrice, minAmount)),
                         'max': undefined,
                     },
                 },
@@ -365,7 +368,7 @@ module.exports = class bitz extends Exchange {
             account['free'] = this.safeString (balance, 'over');
             result[code] = account;
         }
-        return this.parseBalance (result, false);
+        return this.parseBalance (result);
     }
 
     parseTicker (ticker, market = undefined) {
@@ -1257,7 +1260,7 @@ module.exports = class bitz extends Exchange {
     }
 
     sign (path, api = 'market', method = 'GET', params = {}, headers = undefined, body = undefined) {
-        const baseUrl = this.implodeParams (this.urls['api'][api], { 'hostname': this.hostname });
+        const baseUrl = this.implodeHostname (this.urls['api'][api]);
         let url = baseUrl + '/' + this.capitalize (api) + '/' + path;
         let query = undefined;
         if (api === 'market') {

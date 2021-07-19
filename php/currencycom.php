@@ -143,7 +143,11 @@ class currencycom extends Exchange {
                 ),
             ),
             'commonCurrencies' => array(
+                'BNS' => 'Bank of Nova Scotia',
+                'EDU' => 'New Oriental Education & Technology Group Inc',
+                'ETN' => 'Eaton',
                 'IQ' => 'iQIYI',
+                'PLAY' => "Dave & Buster's Entertainment",
             ),
         ));
     }
@@ -427,7 +431,7 @@ class currencycom extends Exchange {
             $account['used'] = $this->safe_string($balance, 'locked');
             $result[$code] = $account;
         }
-        return $this->parse_balance($result, false);
+        return $this->parse_balance($result);
     }
 
     public function fetch_balance($params = array ()) {

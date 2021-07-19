@@ -680,7 +680,7 @@ class bigone extends Exchange {
             $account['used'] = $this->safe_string($balance, 'locked_balance');
             $result[$code] = $account;
         }
-        return $this->parse_balance($result, false);
+        return $this->parse_balance($result);
     }
 
     public function parse_order($order, $market = null) {
@@ -962,7 +962,7 @@ class bigone extends Exchange {
 
     public function sign($path, $api = 'public', $method = 'GET', $params = array (), $headers = null, $body = null) {
         $query = $this->omit($params, $this->extract_params($path));
-        $baseUrl = $this->implode_params($this->urls['api'][$api], array( 'hostname' => $this->hostname ));
+        $baseUrl = $this->implode_hostname($this->urls['api'][$api]);
         $url = $baseUrl . '/' . $this->implode_params($path, $params);
         if ($api === 'public') {
             if ($query) {
@@ -1040,6 +1040,8 @@ class bigone extends Exchange {
             'WITHHOLD' => 'ok', // deposits
             'UNCONFIRMED' => 'pending',
             'CONFIRMED' => 'ok', // withdrawals
+            'COMPLETED' => 'ok',
+            'PENDING' => 'pending',
         );
         return $this->safe_string($statuses, $status, $status);
     }

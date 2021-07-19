@@ -55,7 +55,7 @@ module.exports = class Exchange {
             'id': undefined,
             'name': undefined,
             'countries': undefined,
-            'enableRateLimit': false,
+            'enableRateLimit': true,
             'rateLimit': 2000, // milliseconds = seconds * 1000
             'certified': false,
             'pro': false,
@@ -617,8 +617,7 @@ module.exports = class Exchange {
             'precision': this.precision,
         }, this.fees['trading'], market))
         this.markets = indexBy (values, 'symbol')
-        this.marketsById = indexBy (markets, 'id')
-        this.markets_by_id = this.marketsById
+        this.markets_by_id = indexBy (markets, 'id')
         this.symbols = Object.keys (this.markets).sort ()
         this.ids = Object.keys (this.markets_by_id).sort ()
         if (currencies) {
@@ -763,8 +762,18 @@ module.exports = class Exchange {
         return result
     }
 
-    fetchTicker (symbol, params = {}) {
-        throw new NotSupported (this.id + ' fetchTicker not supported yet')
+    async fetchTicker (symbol, params = {}) {
+        if (this.has['fetchTickers']) {
+            const tickers = await this.fetchTickers ([ symbol ], params);
+            const ticker = this.safeValue (tickers, symbol);
+            if (ticker === undefined) {
+                throw new InvalidAddress (this.id + ' fetchTickers could not find a ticker for ' + symbol);
+            } else {
+                return ticker;
+            }
+        } else {
+            throw new NotSupported (this.id + ' fetchTicker not supported yet');
+        }
     }
 
     fetchTickers (symbols = undefined, params = {}) {
@@ -817,6 +826,20 @@ module.exports = class Exchange {
 
     fetchWithdrawals (symbol = undefined, since = undefined, limit = undefined, params = {}) {
         throw new NotSupported (this.id + ' fetchWithdrawals not supported yet');
+    }
+
+    async fetchDepositAddress (code, params = {}) {
+        if (this.has['fetchDepositAddresses']) {
+            const depositAddresses = await this.fetchDepositAddresses ([ code ], params);
+            const depositAddress = this.safeValue (depositAddresses, code);
+            if (depositAddress === undefined) {
+                throw new InvalidAddress (this.id + ' fetchDepositAddress could not find a deposit address for ' + code + ', make sure you have created a corresponding deposit address in your wallet on the exchange website');
+            } else {
+                return depositAddress;
+            }
+        } else {
+            throw new NotSupported (this.id + ' fetchDepositAddress not supported yet');
+        }
     }
 
     fetchCurrencies (params = {}) {
@@ -918,13 +941,8 @@ module.exports = class Exchange {
         return this.market (symbol).symbol || symbol
     }
 
-    url (path, params = {}) {
-        let result = this.implodeParams (path, params);
-        const query = this.omit (params, this.extractParams (path))
-        if (Object.keys (query).length) {
-            result += '?' + this.urlencode (query)
-        }
-        return result
+    implodeHostname (url) {
+        return this.implodeParams (url, { 'hostname': this.hostname })
     }
 
     parseBidAsk (bidask, priceKey = 0, amountKey = 1) {
@@ -956,7 +974,7 @@ module.exports = class Exchange {
         }
     }
 
-    parseBalance (balance, legacy = true) {
+    parseBalance (balance, legacy = false) {
 
         const codes = Object.keys (this.omit (balance, [ 'info', 'timestamp', 'datetime', 'free', 'used', 'total' ]));
 
@@ -1420,26 +1438,6 @@ module.exports = class Exchange {
         return
     }
 
-    soliditySha3 (array) {
-        // we only support address, uint256, and string solidity types
-        const encoded = []
-        for (let i = 0; i < array.length; i++) {
-            const value = array[i]
-            if (Number.isInteger (value) || value.match (/^[0-9]+$/)) {
-                encoded.push (this.numberToBE (this.numberToString (value), 32))
-            } else {
-                const noPrefix = this.remove0xPrefix (value)
-                if (noPrefix.length === 40 && noPrefix.toLowerCase ().match (/^[0-9a-f]+$/)) { // check if it is an address
-                    encoded.push (this.base16ToBinary (noPrefix))
-                } else {
-                    encoded.push (this.stringToBinary (noPrefix))
-                }
-            }
-        }
-        const concated = this.binaryConcatArray (encoded)
-        return '0x' + this.hash (concated, 'keccak', 'hex')
-    }
-
     remove0xPrefix (hexData) {
         if (hexData.slice (0, 2) === '0x') {
             return hexData.slice (2)
@@ -1481,20 +1479,6 @@ module.exports = class Exchange {
         } else {
             throw new ExchangeError (this.id + ' this.twofa has not been set')
         }
-    }
-
-    // the following functions take and return numbers represented as strings
-    // this is useful for arbitrary precision maths that floats lack
-    integerDivide (a, b) {
-        return new BN (a).div (new BN (b))
-    }
-
-    integerModulo (a, b) {
-        return new BN (a).mod (new BN (b))
-    }
-
-    integerPow (a, b) {
-        return new BN (a).pow (new BN (b))
     }
 
     reduceFeesByCurrency (fees) {

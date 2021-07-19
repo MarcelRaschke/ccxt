@@ -4,7 +4,6 @@
 # https://github.com/ccxt/ccxt/blob/master/CONTRIBUTING.md#how-to-contribute-code
 
 from ccxt.base.exchange import Exchange
-import math
 from ccxt.base.errors import ExchangeError
 from ccxt.base.errors import AuthenticationError
 from ccxt.base.errors import PermissionDenied
@@ -299,10 +298,13 @@ class bitz(Exchange):
             base = self.safe_currency_code(base)
             quote = self.safe_currency_code(quote)
             symbol = base + '/' + quote
+            pricePrecisionString = self.safe_string(market, 'priceFloat')
+            minPrice = self.parse_precision(pricePrecisionString)
             precision = {
                 'amount': self.safe_integer(market, 'numberFloat'),
-                'price': self.safe_integer(market, 'priceFloat'),
+                'price': int(pricePrecisionString),
             }
+            minAmount = self.safe_string(market, 'minTrade')
             result.append({
                 'info': market,
                 'id': id,
@@ -316,15 +318,15 @@ class bitz(Exchange):
                 'precision': precision,
                 'limits': {
                     'amount': {
-                        'min': self.safe_number(market, 'minTrade'),
+                        'min': self.parse_number(minAmount),
                         'max': self.safe_number(market, 'maxTrade'),
                     },
                     'price': {
-                        'min': math.pow(10, -precision['price']),
+                        'min': self.parse_number(minPrice),
                         'max': None,
                     },
                     'cost': {
-                        'min': None,
+                        'min': self.parse_number(Precise.string_mul(minPrice, minAmount)),
                         'max': None,
                     },
                 },
@@ -373,7 +375,7 @@ class bitz(Exchange):
             account['total'] = self.safe_string(balance, 'num')
             account['free'] = self.safe_string(balance, 'over')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def parse_ticker(self, ticker, market=None):
         #
@@ -1204,7 +1206,7 @@ class bitz(Exchange):
         return self.options['lastNonce']
 
     def sign(self, path, api='market', method='GET', params={}, headers=None, body=None):
-        baseUrl = self.implode_params(self.urls['api'][api], {'hostname': self.hostname})
+        baseUrl = self.implode_hostname(self.urls['api'][api])
         url = baseUrl + '/' + self.capitalize(api) + '/' + path
         query = None
         if api == 'market':

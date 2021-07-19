@@ -191,13 +191,13 @@ class tidex extends Exchange {
                     ),
                     'deposit' => array(
                         'active' => $canDeposit,
-                        'fee' => 0.0,
+                        'fee' => $this->parse_number('0'),
                     ),
                 ),
                 'limits' => array(
                     'amount' => array(
                         'min' => null,
-                        'max' => pow(10, $precision),
+                        'max' => null,
                     ),
                     'withdraw' => array(
                         'min' => $this->safe_number($currency, 'withdrawMinAmount'),
@@ -329,7 +329,7 @@ class tidex extends Exchange {
             $account['used'] = $this->safe_string($balance, 'inOrders');
             $result[$code] = $account;
         }
-        return $this->parse_balance($result, false);
+        return $this->parse_balance($result);
     }
 
     public function fetch_order_book($symbol, $limit = null, $params = array ()) {

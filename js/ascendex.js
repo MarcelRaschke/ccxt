@@ -14,7 +14,7 @@ module.exports = class ascendex extends Exchange {
         return this.deepExtend (super.describe (), {
             'id': 'ascendex',
             'name': 'AscendEX',
-            'countries': [ 'SG', 'CN' ], // Singapore, China
+            'countries': [ 'SG' ], // Singapore
             'rateLimit': 500,
             // new metainfo interface
             'has': {
@@ -64,7 +64,7 @@ module.exports = class ascendex extends Exchange {
                     'https://bitmax-exchange.github.io/bitmax-pro-api/#bitmax-pro-api-documentation',
                 ],
                 'fees': 'https://ascendex.com/en/feerate/transactionfee-traderate',
-                'referral': 'https://bitmax.io/#/register?inviteCode=EL6BXBQM',
+                'referral': 'https://ascendex.com/en-us/register?inviteCode=EL6BXBQM',
             },
             'api': {
                 'public': {
@@ -296,7 +296,8 @@ module.exports = class ascendex extends Exchange {
             const id = ids[i];
             const currency = dataById[id];
             const code = this.safeCurrencyCode (id);
-            const precision = this.safeInteger2 (currency, 'precisionScale', 'nativeScale');
+            const precision = this.safeString2 (currency, 'precisionScale', 'nativeScale');
+            const minAmount = this.parsePrecision (precision);
             // why would the exchange API have different names for the same field
             const fee = this.safeNumber2 (currency, 'withdrawFee', 'withdrawalFee');
             const status = this.safeString2 (currency, 'status', 'statusCode');
@@ -311,10 +312,10 @@ module.exports = class ascendex extends Exchange {
                 'name': this.safeString (currency, 'assetName'),
                 'active': active,
                 'fee': fee,
-                'precision': precision,
+                'precision': parseInt (precision),
                 'limits': {
                     'amount': {
-                        'min': Math.pow (10, -precision),
+                        'min': this.parseNumber (minAmount),
                         'max': undefined,
                     },
                     'withdraw': {
@@ -427,10 +428,12 @@ module.exports = class ascendex extends Exchange {
             const type = ('useLot' in market) ? 'spot' : 'future';
             const spot = (type === 'spot');
             const future = (type === 'future');
+            const margin = this.safeValue (market, 'marginTradable', false);
             let symbol = id;
             if (!future) {
                 symbol = base + '/' + quote;
             }
+            const fee = this.safeNumber (market, 'commissionReserveRate');
             result.push ({
                 'id': id,
                 'symbol': symbol,
@@ -441,9 +444,12 @@ module.exports = class ascendex extends Exchange {
                 'info': market,
                 'type': type,
                 'spot': spot,
+                'margin': margin,
                 'future': future,
                 'active': active,
                 'precision': precision,
+                'taker': fee,
+                'maker': fee,
                 'limits': {
                     'amount': {
                         'min': this.safeNumber (market, 'minQty'),
@@ -575,7 +581,7 @@ module.exports = class ascendex extends Exchange {
             account['total'] = this.safeString (balance, 'totalBalance');
             result[code] = account;
         }
-        return this.parseBalance (result, false);
+        return this.parseBalance (result);
     }
 
     async fetchOrderBook (symbol, limit = undefined, params = {}) {

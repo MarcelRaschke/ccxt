@@ -31,13 +31,12 @@ SOFTWARE.
 namespace ccxt;
 
 use kornrunner\Keccak;
-use kornrunner\Solidity;
 use Elliptic\EC;
 use Elliptic\EdDSA;
 use BN\BN;
 use Exception;
 
-$version = '1.49.42';
+$version = '1.53.30';
 
 // rounding mode
 const TRUNCATE = 0;
@@ -56,7 +55,7 @@ const PAD_WITH_ZERO = 1;
 
 class Exchange {
 
-    const VERSION = '1.49.42';
+    const VERSION = '1.53.30';
 
     private static $base58_alphabet = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
     private static $base58_encoder = null;
@@ -70,10 +69,13 @@ class Exchange {
         'bibox',
         'bigone',
         'binance',
+        'binancecoinm',
         'binanceus',
+        'binanceusdm',
         'bit2c',
         'bitbank',
         'bitbay',
+        'bitbns',
         'bitcoincom',
         'bitfinex',
         'bitfinex2',
@@ -81,7 +83,6 @@ class Exchange {
         'bitforex',
         'bitget',
         'bithumb',
-        'bitkk',
         'bitmart',
         'bitmex',
         'bitpanda',
@@ -101,7 +102,6 @@ class Exchange {
         'buda',
         'bw',
         'bybit',
-        'bytetrade',
         'cdax',
         'cex',
         'coinbase',
@@ -112,7 +112,6 @@ class Exchange {
         'coinex',
         'coinfalcon',
         'coinfloor',
-        'coingi',
         'coinmarketcap',
         'coinmate',
         'coinone',
@@ -122,14 +121,14 @@ class Exchange {
         'delta',
         'deribit',
         'digifinex',
+        'eqonex',
         'equos',
-        'eterbase',
         'exmo',
         'exx',
         'flowbtc',
-        'foxbit',
         'ftx',
         'gateio',
+        'gateio4',
         'gemini',
         'gopax',
         'hbtc',
@@ -144,7 +143,6 @@ class Exchange {
         'kraken',
         'kucoin',
         'kuna',
-        'lakebtc',
         'latoken',
         'lbank',
         'liquid',
@@ -157,26 +155,23 @@ class Exchange {
         'oceanex',
         'okcoin',
         'okex',
+        'okex3',
+        'okex5',
         'paymium',
         'phemex',
         'poloniex',
         'probit',
         'qtrade',
-        'rightbtc',
         'ripio',
-        'southxchange',
         'stex',
-        'surbitcoin',
         'therock',
         'tidebit',
         'tidex',
         'timex',
         'upbit',
-        'vbtc',
         'vcc',
         'wavesexchange',
         'whitebit',
-        'xbtce',
         'xena',
         'yobit',
         'zaif',
@@ -221,11 +216,10 @@ class Exchange {
         'safeString2' => 'safe_string2',
         'safeStringLower2' => 'safe_string_lower2',
         'safeStringUpper2' => 'safe_string_upper2',
-        'toWei' => 'to_wei',
-        'fromWei' => 'from_wei',
         'numberToString' => 'number_to_string',
         'precisionFromString' => 'precision_from_string',
         'decimalToPrecision' => 'decimal_to_precision',
+        'omitZero' => 'omit_zero',
         'isJsonEncodedObject' => 'is_json_encoded_object',
         'stringToBinary' => 'string_to_binary',
         'stringToBase64' => 'string_to_base64',
@@ -294,6 +288,7 @@ class Exchange {
         'fetchTransactions' => 'fetch_transactions',
         'fetchDeposits' => 'fetch_deposits',
         'fetchWithdrawals' => 'fetch_withdrawals',
+        'fetchDepositAddress' => 'fetch_deposit_address',
         'fetchCurrencies' => 'fetch_currencies',
         'fetchMarkets' => 'fetch_markets',
         'fetchOrderStatus' => 'fetch_order_status',
@@ -302,6 +297,7 @@ class Exchange {
         'marketId' => 'market_id',
         'marketIds' => 'market_ids',
         'currencyIds' => 'currency_ids',
+        'implodeHostname' => 'implode_hostname',
         'parseBidAsk' => 'parse_bid_ask',
         'parseBidsAsks' => 'parse_bids_asks',
         'fetchL2OrderBook' => 'fetch_l2_order_book',
@@ -353,15 +349,11 @@ class Exchange {
         'currencyToPrecision' => 'currency_to_precision',
         'calculateFee' => 'calculate_fee',
         'checkRequiredDependencies' => 'check_required_dependencies',
-        'soliditySha3' => 'solidity_sha3',
         'remove0xPrefix' => 'remove0x_prefix',
         'hashMessage' => 'hash_message',
         'signHash' => 'sign_hash',
         'signMessage' => 'sign_message',
         'signMessageString' => 'sign_message_string',
-        'integerDivide' => 'integer_divide',
-        'integerModulo' => 'integer_modulo',
-        'integerPow' => 'integer_pow',
         'reduceFeesByCurrency' => 'reduce_fees_by_currency',
         'safeOrder' => 'safe_order',
         'parseNumber' => 'parse_number',
@@ -472,6 +464,10 @@ class Exchange {
             return $integer . $decimal;
         }
         return sprintf('%d', floatval($number));
+    }
+
+    public static function uuid16($length = 16) {
+        return bin2hex(random_bytes(intval($length / 2)));
     }
 
     public static function uuid22($length = 22) {
@@ -706,6 +702,10 @@ class Exchange {
             }
         }
         return $string;
+    }
+
+    public function implode_hostname($url) {
+        return static::implode_params($url, array('hostname' => $this->hostname));
     }
 
     public static function deep_extend() {
@@ -1083,7 +1083,6 @@ class Exchange {
         $this->token = ''; // reserved for HTTP auth in some cases
 
         $this->twofa = null;
-        $this->marketsById = null;
         $this->markets_by_id = null;
         $this->currencies_by_id = null;
         $this->userAgent = null; // 'ccxt/' . $this::VERSION . ' (+https://github.com/ccxt/ccxt) PHP/' . PHP_VERSION;
@@ -1164,7 +1163,7 @@ class Exchange {
         $this->lastRestPollTimestamp = 0;
         $this->restRequestQueue = null;
         $this->restPollerLoopIsRunning = false;
-        $this->enableRateLimit = false;
+        $this->enableRateLimit = true;
         $this->enableLastJsonResponse = true;
         $this->enableLastHttpResponse = true;
         $this->enableLastResponseHeaders = true;
@@ -1655,7 +1654,6 @@ class Exchange {
         }
         $this->markets = static::index_by($values, 'symbol');
         $this->markets_by_id = static::index_by($values, 'id');
-        $this->marketsById = $this->markets_by_id;
         $this->symbols = array_keys($this->markets);
         sort($this->symbols);
         $this->ids = array_keys($this->markets_by_id);
@@ -1788,7 +1786,7 @@ class Exchange {
         );
     }
 
-    public function parse_balance($balance, $legacy = true) {
+    public function parse_balance($balance, $legacy = false) {
         $currencies = $this->omit($balance, array('info', 'timestamp', 'datetime', 'free', 'used', 'total'));
 
         $balance['free'] = array();
@@ -2139,8 +2137,18 @@ class Exchange {
         throw new NotSupported($this->id . ' API does not allow to fetch all prices at once with a single call to fetch_bids_asks () for now');
     }
 
-    public function fetch_ticker($symbol, $params = array()) { // stub
-        throw new NotSupported($this->id . ' fetchTicker not supported yet');
+    public function fetch_ticker($symbol, $params = array ()) {
+        if ($this->has['fetchTickers']) {
+            $tickers = $this->fetch_tickers(array( $symbol ), $params);
+            $ticker = $this->safe_value($tickers, $symbol);
+            if ($ticker === null) {
+                throw new BadSymbol($this->id . ' fetchTickers could not find a $ticker for ' . $symbol);
+            } else {
+                return $ticker;
+            }
+        } else {
+            throw new NotSupported($this->id . ' fetchTicker not supported yet');
+        }
     }
 
     public function fetch_tickers($symbols, $params = array()) { // stub
@@ -2192,8 +2200,22 @@ class Exchange {
         throw new NotSupported($this->id . ' fetch_withdrawals() not supported yet');
     }
 
+    // public function fetch_deposit_address($code, $params = array()) {
+    //     throw new NotSupported($this->id . ' fetch_deposit_address() not supported yet');
+    // }
+
     public function fetch_deposit_address($code, $params = array()) {
-        throw new NotSupported($this->id . ' fetch_deposit_address() not supported yet');
+        if ($this->has['fetchDepositAddresses']) {
+            $deposit_addresses = $this->fetch_deposit_addresses(array($code), $params);
+            $deposit_address = $this->safe_value($deposit_addresses, $code);
+            if ($deposit_address === null) {
+                throw new InvalidAddress($this->id . ' fetchDepositAddress could not find a deposit address for ' . $code . ', make sure you have created a corresponding deposit address in your wallet on the exchange website');
+            } else {
+                return $deposit_address;
+            }
+        } else {
+            throw new NotSupported ($this->id + ' fetchDepositAddress not supported yet');
+        }
     }
 
     public function fetch_markets($params = array()) {
@@ -2726,22 +2748,6 @@ class Exchange {
         }
     }
 
-    public static function from_wei($amount, $decimals = 18) {
-        $format_decimals = $decimals + floor(log($amount, 10));
-        $exponential = sprintf('%.' . $format_decimals . 'e', $amount);
-        list($n, $exponent) = explode('e', $exponential);
-        $new_exponent = intval($exponent) - $decimals;
-        return floatval($n . 'e' . strval($new_exponent));
-    }
-
-    public static function to_wei($amount, $decimals = 18) {
-        $format_decimals = $decimals + floor(log($amount, 10));
-        $exponential = sprintf('%.' . $format_decimals . 'e', $amount);
-        list($n, $exponent) = explode('e', $exponential);
-        $new_exponent = intval($exponent) + $decimals;
-        return static::number_to_string(floatval($n . 'e' . strval($new_exponent)));
-    }
-
     public static function hashMessage($message) {
         $trimmed = ltrim($message, '0x');
         $buffer = unpack('C*', hex2bin($trimmed));
@@ -2773,10 +2779,6 @@ class Exchange {
         } else {
             throw new ExchangeError($this->id . ' requires a non-empty value in $this->twofa property');
         }
-    }
-
-    public function soliditySha3($array) {
-        return @call_user_func_array('\\kornrunner\Solidity::sha3', $array);
     }
 
     public static function base32_decode($s) {
@@ -2817,18 +2819,6 @@ class Exchange {
     public static function number_to_le($n, $padding) {
         $n = new BN ($n);
         return array_reduce(array_map('chr', $n->toArray('le', $padding)), 'static::binary_concat');
-    }
-
-    public static function integer_divide($a, $b) {
-        return (new BN ($a))->div (new BN ($b));
-    }
-
-    public static function integer_modulo($a, $b) {
-        return (new BN ($a))->mod (new BN ($b));
-    }
-
-    public static function integer_pow($a, $b) {
-        return (new BN ($a))->pow (new BN ($b));
     }
 
     public static function base58_to_binary($s) {
@@ -3052,5 +3042,15 @@ class Exchange {
             return null;
         }
         return '1e' . Precise::string_neg($precision);
+    }
+
+    public function omit_zero($string_number) {
+        if ($string_number === null) {
+            return null;
+        }
+        if (floatval($string_number) === 0.0) {
+            return null;
+        }
+        return $string_number;
     }
 }

@@ -654,7 +654,7 @@ class bigone(Exchange):
             account['total'] = self.safe_string(balance, 'balance')
             account['used'] = self.safe_string(balance, 'locked_balance')
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def parse_order(self, order, market=None):
         #
@@ -915,7 +915,7 @@ class bigone(Exchange):
 
     def sign(self, path, api='public', method='GET', params={}, headers=None, body=None):
         query = self.omit(params, self.extract_params(path))
-        baseUrl = self.implode_params(self.urls['api'][api], {'hostname': self.hostname})
+        baseUrl = self.implode_hostname(self.urls['api'][api])
         url = baseUrl + '/' + self.implode_params(path, params)
         if api == 'public':
             if query:
@@ -986,6 +986,8 @@ class bigone(Exchange):
             'WITHHOLD': 'ok',  # deposits
             'UNCONFIRMED': 'pending',
             'CONFIRMED': 'ok',  # withdrawals
+            'COMPLETED': 'ok',
+            'PENDING': 'pending',
         }
         return self.safe_string(statuses, status, status)
 

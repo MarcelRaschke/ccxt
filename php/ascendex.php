@@ -16,7 +16,7 @@ class ascendex extends Exchange {
         return $this->deep_extend(parent::describe (), array(
             'id' => 'ascendex',
             'name' => 'AscendEX',
-            'countries' => array( 'SG', 'CN' ), // Singapore, China
+            'countries' => array( 'SG' ), // Singapore
             'rateLimit' => 500,
             // new metainfo interface
             'has' => array(
@@ -66,7 +66,7 @@ class ascendex extends Exchange {
                     'https://bitmax-exchange.github.io/bitmax-pro-api/#bitmax-pro-api-documentation',
                 ),
                 'fees' => 'https://ascendex.com/en/feerate/transactionfee-traderate',
-                'referral' => 'https://bitmax.io/#/register?inviteCode=EL6BXBQM',
+                'referral' => 'https://ascendex.com/en-us/register?inviteCode=EL6BXBQM',
             ),
             'api' => array(
                 'public' => array(
@@ -298,7 +298,8 @@ class ascendex extends Exchange {
             $id = $ids[$i];
             $currency = $dataById[$id];
             $code = $this->safe_currency_code($id);
-            $precision = $this->safe_integer_2($currency, 'precisionScale', 'nativeScale');
+            $precision = $this->safe_string_2($currency, 'precisionScale', 'nativeScale');
+            $minAmount = $this->parse_precision($precision);
             // why would the exchange API have different names for the same field
             $fee = $this->safe_number_2($currency, 'withdrawFee', 'withdrawalFee');
             $status = $this->safe_string_2($currency, 'status', 'statusCode');
@@ -313,10 +314,10 @@ class ascendex extends Exchange {
                 'name' => $this->safe_string($currency, 'assetName'),
                 'active' => $active,
                 'fee' => $fee,
-                'precision' => $precision,
+                'precision' => intval($precision),
                 'limits' => array(
                     'amount' => array(
-                        'min' => pow(10, -$precision),
+                        'min' => $this->parse_number($minAmount),
                         'max' => null,
                     ),
                     'withdraw' => array(
@@ -429,10 +430,12 @@ class ascendex extends Exchange {
             $type = (is_array($market) && array_key_exists('useLot', $market)) ? 'spot' : 'future';
             $spot = ($type === 'spot');
             $future = ($type === 'future');
+            $margin = $this->safe_value($market, 'marginTradable', false);
             $symbol = $id;
             if (!$future) {
                 $symbol = $base . '/' . $quote;
             }
+            $fee = $this->safe_number($market, 'commissionReserveRate');
             $result[] = array(
                 'id' => $id,
                 'symbol' => $symbol,
@@ -443,9 +446,12 @@ class ascendex extends Exchange {
                 'info' => $market,
                 'type' => $type,
                 'spot' => $spot,
+                'margin' => $margin,
                 'future' => $future,
                 'active' => $active,
                 'precision' => $precision,
+                'taker' => $fee,
+                'maker' => $fee,
                 'limits' => array(
                     'amount' => array(
                         'min' => $this->safe_number($market, 'minQty'),
@@ -577,7 +583,7 @@ class ascendex extends Exchange {
             $account['total'] = $this->safe_string($balance, 'totalBalance');
             $result[$code] = $account;
         }
-        return $this->parse_balance($result, false);
+        return $this->parse_balance($result);
     }
 
     public function fetch_order_book($symbol, $limit = null, $params = array ()) {

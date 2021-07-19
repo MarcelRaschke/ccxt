@@ -489,7 +489,7 @@ class exmo(Exchange):
                 'broad': {
                     'range period is too long': BadRequest,
                     'invalid syntax': BadRequest,
-                    'API rate limit exceeded': RateLimitExceeded,  # {"result":false,"error":"API rate limit exceeded for 99.33.55.224. Retry after 60 sec.","history":[],"begin":1579392000,"end":1579478400}
+                    'API rate limit exceeded': RateLimitExceeded,  # {"result":false,"error":"API rate limit exceeded for x.x.x.x. Retry after 60 sec.","history":[],"begin":1579392000,"end":1579478400}
                 },
             },
             'orders': {},  # orders cache / emulation
@@ -770,7 +770,7 @@ class exmo(Exchange):
             if currencyId in used:
                 account['used'] = self.safe_string(used, currencyId)
             result[code] = account
-        return self.parse_balance(result, False)
+        return self.parse_balance(result)
 
     def fetch_order_book(self, symbol, limit=None, params={}):
         self.load_markets()

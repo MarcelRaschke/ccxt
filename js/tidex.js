@@ -184,13 +184,13 @@ module.exports = class tidex extends Exchange {
                     },
                     'deposit': {
                         'active': canDeposit,
-                        'fee': 0.0,
+                        'fee': this.parseNumber ('0'),
                     },
                 },
                 'limits': {
                     'amount': {
                         'min': undefined,
-                        'max': Math.pow (10, precision),
+                        'max': undefined,
                     },
                     'withdraw': {
                         'min': this.safeNumber (currency, 'withdrawMinAmount'),
@@ -322,7 +322,7 @@ module.exports = class tidex extends Exchange {
             account['used'] = this.safeString (balance, 'inOrders');
             result[code] = account;
         }
-        return this.parseBalance (result, false);
+        return this.parseBalance (result);
     }
 
     async fetchOrderBook (symbol, limit = undefined, params = {}) {
